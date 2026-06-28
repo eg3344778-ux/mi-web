@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego Consolidado - Interfaz Pura + Selector BLE</title>
+    <style>
+        /* --- ESTILOS GENERALES (Cyber Dark & Blue Neon) --- */
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; 
+            background: #020612; 
+            color: #ffffff; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+            position: relative; 
+            min-height: 90vh;
+        }
+
+        /* Caja contenedora con brillo azul */
+        .box { 
+            background: #050c18; 
+            margin: 40px auto; 
+            padding: 35px 25px; 
+            width: 85%; 
+            max-width: 650px; 
+            border-radius: 16px; 
+            border: 2px solid #0052cc; 
+            box-shadow: 0 0 25px rgba(0, 82, 204, 0.4), inset 0 0 15px rgba(0, 82, 204, 0.2); 
+        }
+
+        /* Botones Generales */
+        button { 
+            margin: 6px; 
+            padding: 14px 24px; 
+            cursor: pointer; 
+            border-radius: 8px; 
+            border: none; 
+            font-weight: bold; 
+            font-size: 15px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            transition: all 0.2s ease-in-out; 
+        }
+        button:hover { opacity: 0.9; transform: scale(1.03); }
+
+        /* Entradas de texto */
+        input { 
+            padding: 14px; 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+            background: #031124; 
+            color: #fff; 
+            border: 1px solid #0052cc; 
+            border-radius: 8px; 
+            width: 80%; 
+            max-width: 320px; 
+            outline: none; 
+            text-align: center; 
+        }
+        input:focus { 
+            border-color: #0099ff; 
+            box-shadow: 0 0 15px rgba(0, 153, 255, 0.6); 
+        }
+        
+        /* --- BARRA DE HERRAMIENTAS SUPERIOR --- */
+        .esquina-herramientas { position: absolute; top: 15px; width: calc(100% - 30px); display: flex; justify-content: space-between; z-index: 10; }
+        
+        /* Botones de la barra superior */
+        .btn-bluetooth { 
+            background: rgba(0, 82, 204, 0.15); 
+            color: #00b4d8; 
+            border: 1px solid #0052cc; 
+            font-size: 13px;
+            box-shadow: 0 0 10px rgba(0, 82, 204, 0.3);
+        }
+        .btn-admin { 
+            background: rgba(15, 23, 42, 0.6); 
+            color: #ffcc00; 
+            border: 1px solid #334155; 
+            font-size: 13px;
+        }
+
+        /* --- VENTANA EMERGENTE CONTRASEÑA ADMIN --- */
+        .modal-login { display: none; position: fixed; inset: 0; background: rgba(1, 4, 9, 0.85); z-index: 30; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-contenido { background: #070f1e; padding: 35px; border-radius: 16px; border: 2px solid #0052cc; box-shadow: 0 0 30px rgba(0,82,204,0.5); width: 85%; max-width: 380px; }
+
+        /* --- SUBPÁGINA: PANEL ADMIN --- */
+        #panel-admin { display: none; background: #000000; border: 1px solid #222; box-shadow: none; }
+        #panel-admin .box { 
+            background: #0d0d0d; 
+            border: 1px solid #3a0000; 
+            box-shadow: inset 0 0 10px rgba(230, 57, 70, 0.05); 
+        }
+        #panel-admin h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+            text-align: left;
+            border-left: 3px solid #e63946;
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }
+        .btn-admin-act { 
+            background: #120000; 
+            color: #ffffff; 
+            border: 1px solid #e63946; 
+            box-shadow: 0 0 10px rgba(230, 57, 70, 0.1);
+        }
+        .btn-admin-danger { 
+            background: #e63946; 
+            color: white; 
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.3); 
+        }
+        .btn-admin-success {
+            background: #001a00;
+            color: #ffffff;
+            border: 1px solid #2ecc71;
+        }
+
+        /* Tabla de Clasificación */
+        .tabla-ranking { width: 100%; border-collapse: collapse; margin-top: 15px; background: #050505; color: #fff; border-radius: 4px; overflow: hidden; }
+        .tabla-ranking th { background-color: #0e0e0e; color: #8c8c8c; font-size: 11px; padding: 12px; text-transform: uppercase; border-bottom: 2px solid #1a1a1a; }
+        .tabla-ranking td { padding: 14px; text-align: center; border-bottom: 1px solid #111; font-size: 15px; }
+
+        /* --- SUBPÁGINA: JUGADOR Y MANDOS --- */
+        #registro-jugador { margin-top: 18vh; }
+        #juego-jugador { display: none; padding: 20px; }
+        #estadoJuego { font-size: 18px; font-weight: bold; margin-bottom: 25px; color: #64748b; letter-spacing: 1px; }
+        
+        /* Mandos de Dirección */
+        #contenedor-mandos { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; transition: all 0.4s; }
+        .tarjeta-mando { background: #040a14; border: 1px solid #0052cc; padding: 25px; border-radius: 16px; box-shadow: 0 0 20px rgba(0, 82, 204, 0.2); width: 320px; }
+        .tarjeta-mando h2 { font-size: 16px; color: #00b4d8; text-transform: uppercase; margin-bottom: 20px; }
+        
+        button.btn-direccion { width: 110px; height: 55px; margin: 8px; background: rgba(0, 82, 204, 0.1); color: #00b4d8; border: 1px solid #0052cc; font-size: 16px; border-radius: 10px; }
+        button.btn-direccion:active { background: #0052cc; color: white; box-shadow: 0 0 15px #0052cc; }
+        
+        .tarjeta-mando.secundario { border-color: #bd93f9; box-shadow: 0 0 20px rgba(189, 147, 249, 0.2); }
+        .tarjeta-mando.secundario h2 { color: #bd93f9; }
+        .tarjeta-mando.secundario button.btn-direccion { background: rgba(189, 147, 249, 0.1); color: #bd93f9; border-color: #bd93f9; }
+        .tarjeta-mando.secundario button.btn-direccion:active { background: #bd93f9; color: white; box-shadow: 0 0 15px #bd93f9; }
+        .fila { display: flex; justify-content: center; gap: 15px; }
+        
+        /* Ranking Flotante */
+        #rankingJugadorFlotante { position: fixed; top: 80px; right: 20px; background: #040a14; border: 1px solid #0052cc; padding: 20px; border-radius: 16px; display: none; box-shadow: 0 0 20px rgba(0,82,204,0.4); z-index: 5; width: 250px; animation: fadeIn 0.3s; }
+        #rankingJugadorFlotante table { width: 100%; border-collapse: collapse; }
+        #rankingJugadorFlotante th, #rankingJugadorFlotante td { padding: 10px; text-align: left; border-bottom: 1px solid #0d1f3d; }
+        #rankingJugadorFlotante th { color: #475569; font-size: 11px; text-transform: uppercase; }
+
+        /* --- ALERTA DINÁMICA DE GAME OVER --- */
+        #pantallaAlertaAdmin { display: none; margin: 25px auto; max-width: 500px; animation: fadeIn 0.4s; }
+        .gameover-box { background: #0a0101; border: 2px solid #e63946; border-radius: 12px; padding: 30px; box-shadow: 0 0 25px rgba(230, 57, 70, 0.4); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="esquina-herramientas">
+        <button id="btnConectarBLE" class="btn-top btn-bluetooth" onclick="solicitarDispositivoBluetooth()">🔷 Conectar BLE</button>
+        <button class="btn-top btn-admin" onclick="abrirModalAdmin()">👑 Admin</button>
+    </div>
+
+    <div id="modalLoginAdmin" class="modal-login">
+        <div class="modal-contenido">
+            <h2 style="margin-top:0; color:#ffcc00; font-size: 20px;">🔒 ACCESO SUPREMO</h2>
+            <p style="color: #64748b; font-size:14px;">Introduce la clave del Administrador:</p>
+            <input type="password" id="passAdmin" placeholder="••••••••"><br>
+            <button style="background:#1e293b; color:#94a3b8;" onclick="cerrarModalAdmin()">Cancelar</button>
+            <button style="background:#0052cc; color:white;" onclick="verificarPassword()">Confirmar</button>
+        </div>
+    </div>
+
+    <div id="registro-jugador" class="box">
+        <div style="font-size: 44px; margin-bottom: 15px; color:#00b4d8;">🎮</div>
+        <h1 style="text-transform: uppercase; font-size:32px; letter-spacing:2px; margin:0 0 10px 0; font-weight:900;">Bienvenido <span style="color:#0077b6;">al Juego</span></h1>
+        <p style="color: #64748b; font-size:15px; margin-bottom:30px;">Introduce tu nombre de piloto para empezar:</p>
+        <input id="nombreJugador" placeholder="Tu nombre aquí..."><br>
+        <button style="background: #0052cc; color: white; width: 85%; max-width: 340px; box-shadow: 0 4px 15px rgba(0, 82, 204, 0.4);" onclick="registrarAlJugador()">🚀 Entrar a los Mandos</button>
+        
+        <div style="display:flex; justify-content:space-around; margin-top:35px; border-top:1px solid #0d1f3d; padding-top:20px; font-size:11px; color:#475569;">
+            <div>🛡️ CONTROL TOTAL</div>
+            <div>⚡ TIEMPO REAL</div>
+            <div>🎯 PRECISO</div>
+        </div>
+    </div>
+
+    <div id="juego-jugador">
+        <h1 id="tituloJugador" style="letter-spacing: 1px;">Piloto Activo</h1>
+        <div id="estadoJuego">🟠 ESTADO: Esperando conexión Bluetooth</div>
+        
+        <div id="pantallaAlertaAdmin"></div>
+
+        <div id="rankingJugadorFlotante">
+            <h3 style="margin-top:0; color:#00b4d8; font-size:15px; text-transform:uppercase;">🏆 Tabla de Posiciones</h3>
+            <table>
+                <thead><tr><th>Nombre</th><th>Puntos</th></tr></thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="contenedor-mandos">
+            <div class="tarjeta-mando">
+                <h2>Servos Principales N1</h2>
+                <button class="btn-direccion" onclick="ejecutarAccion('N1_ARRIBA')">Arriba</button>
+                <div class="fila">
+                    <button class="btn-direccion" onclick="ejecutarAccion('N1_IZQUIERDA')">Izquierda</button>
+                    <button class="btn-direccion" onclick="ejecutarAccion('N1_DERECHA')">Derecha</button>
+                </div>
+                <button class="btn-direccion" onclick="ejecutarAccion('N1_ABAJO')">Abajo</button>
+            </div>
+
+            <div class="tarjeta-mando americano secundario">
+                <h2>Servos Secundarios N2</h2>
+                <button class="btn-direccion" onclick="ejecutarAccion('N2_ARRIBA')">Arriba</button>
+                <div class="fila">
+                    <button class="btn-direccion" onclick="ejecutarAccion('N2_IZQUIERDA')">Izquierda</button>
+                    <button class="btn-direccion" onclick="ejecutarAccion('N2_DERECHA')">Derecha</button>
+                </div>
+                <button class="btn-direccion" onclick="ejecutarAccion('N2_ABAJO')">Abajo</button>
+            </div>
+        </div>
+
+        <br><br>
+        <button style="background:transparent; color:#475569; border:1px solid #1e293b; font-size:12px;" onclick="salirDelJuego()">Cerrar Juego</button>
+    </div>
+
+    <div id="panel-admin" class="box">
+        <h1 style="color: #e63946; font-size:34px; font-weight:900; letter-spacing:1px; text-transform:uppercase; margin:0 0 5px 0;">CONSOLA SUPREMA <span style="color:#ffffff; font-size:24px; display:block; font-weight:300;">DEL ADMIN</span></h1>
+        <p style="color: #666; font-size:14px; margin:0 0 30px 0;">Desde aquí controlas en vivo lo que ve y hace el jugador.</p>
+
+        <div class="box">
+            <h3>⚡ ACCIONES DE CONTROL EN TIEMPO REAL</h3>
+            <button class="btn-admin-act" onclick="adminToggleRanking()">👁️ Mostrar/Ocultar Ranked</button>
+            <button class="btn-admin-danger" style="background:#5a0000; border:1px solid #e63946;" onclick="adminCongelarJugador(true)">🔒 Congelar Mandos</button>
+            <button class="btn-admin-success" onclick="adminCongelarJugador(false)">🔓 Descongelar Mandos</button>
+        </div>
+
+        <div class="box">
+            <h3>🖼️ INYECCIÓN DE CONTENIDO E IMÁGENES</h3>
+            <button class="btn-admin-danger" onclick="adminTerminarJuego()">🚩 Lanzar Pantalla "Fin del Juego"</button>
+            <button class="btn-admin-act" style="border-color:#555;" onclick="adminLimpiarAlertas()">🧹 Limpiar Alertas</button>
+        </div>
+
+        <button style="background:#111; color:#e63946; border:1px solid #3a0000; font-size:13px;" onclick="salirModoAdmin()">🛑 Cerrar Sesión Suprema</button>
+
+        <div class="box" id="contenedorRankingAdmin">
+            <h3>🏆 VISTA DEL ADMIN (RANKED BASE)</h3>
+            <div id="tablaAdminContenedor"></div>
+        </div>
+    </div>
+
+<script>
+
+    // --- VARIABLES GLOBALES (La memoria del programa) ---
+    let miNombre = "";
+    let contraseñaMaestra = "123468";
+    let rankingVisibleParaJugador = false;
+    let enModoAdmin = false;
+    let bluetoothConectado = false;
+    let nombreDispositivo = "";
+
+    // Base de datos local con los jugadores iniciales
+    // TOP 10 SIMULADO FIJO
+    const top10SimuladoBase = [
+        { name: "Estuardo", pts: 200, tiempo: 12.0 },
+        { name: "Carlos", pts: 180, tiempo: 14.0 },
+        { name: "Alejandro", pts: 150, tiempo: 11.0 },
+        { name: "Mariana", pts: 140, tiempo: 15.0 },
+        { name: "Roberto", pts: 120, tiempo: 10.0 },
+        { name: "Sofia", pts: 100, tiempo: 13.0 },
+        { name: "David", pts: 90, tiempo: 19.0 },
+        { name: "Lucia", pts: 80, tiempo: 16.0 },
+        { name: "Juan", pts: 60, tiempo: 22.0 },
+        { name: "Elena", pts: 40, tiempo: 14.0 }
+    ];
+
+    // Base de datos local conectada al Top 10 Base
+    let listaJugadores = [...top10SimuladoBase];
+
+    function abrirModalAdmin() {
+        document.getElementById("modalLoginAdmin").style.display = "flex";
+        document.getElementById("passAdmin").focus();
+    }
+
+    function cerrarModalAdmin() {
+        document.getElementById("modalLoginAdmin").style.display = "none";
+        document.getElementById("passAdmin").value = "";
+    }
+
+    function verificarPassword() {
+        const inputPass = document.getElementById("passAdmin").value;
+        if (inputPass === contraseñaMaestra) {
+            cerrarModalAdmin();
+            document.getElementById("registro-jugador").style.display = "none";
+            document.getElementById("juego-jugador").style.display = "none";
+            document.getElementById("panel-admin").style.display = "block";
+            enModoAdmin = true;
+            actualizarInterfazBluetooth();
+            renderizarTablasRanking();
+        } else {
+            alert("❌ Acceso Denegado. Contraseña Incorrecta.");
+        }
+    }
+
+    function salirModoAdmin() {
+        document.getElementById("panel-admin").style.display = "none";
+        enModoAdmin = false;
+        actualizarInterfazBluetooth();
+        if (miNombre) {
+            document.getElementById("juego-jugador").style.display = "block";
+        } else {
+            document.getElementById("registro-jugador").style.display = "block";
+        }
+    }
+
+   function registrarAlJugador() {
+    // 1. Validamos que el input exista y tenga texto
+    const inputNombre = document.getElementById("nombreJugador");
+    if (!inputNombre || !inputNombre.value.trim()) { 
+        alert("¡Debes ingresar un nombre para jugar!"); 
+        return; 
+    }
+    
+    miNombre = inputNombre.value.trim();
+    puntosPartidaActual = 0;
+    tiempoFinalTranscurrido = 0;
+    
+    // 2. Reiniciamos la lista con el Top 10 Base simulado
+    if (typeof top10SimuladoBase !== 'undefined') {
+        listaJugadores = [...top10SimuladoBase]; 
+    } else {
+        listaJugadores = []; // Respaldo por si acaso
+    }
+    
+    // 3. Agregamos tu usuario a la lista
+    listaJugadores.push({ name: miNombre, pts: 0, tiempo: 0 });
+
+    // 4. Actualizamos los elementos visuales (con validación para que no se rompa)
+    const ePts = document.getElementById("puntosEnVivo");
+    if (ePts) ePts.innerText = "0";
+
+    const eCrono = document.getElementById("cronometroEnVivo");
+    if (eCrono) eCrono.innerText = "0.0s";
+
+    const eTitulo = document.getElementById("tituloJugador");
+    if (eTitulo) eTitulo.innerHTML = `PILOTO ACTIVO: <span style="color:#00b4d8;">${miNombre.toUpperCase()}</span>`;
+    
+    // 5. Intercambiamos las pantallas
+    const pRegistro = document.getElementById("registro-jugador");
+    const pJuego = document.getElementById("juego-jugador");
+    
+    if (pRegistro) pRegistro.style.display = "none";
+    if (pJuego) pJuego.style.display = "block";
+
+    // Mostrar u ocultar la tabla flotante según lo que tenga el admin
+    const pRanking = document.getElementById("rankingJugadorFlotante");
+    if (pRanking) {
+        pRanking.style.display = (typeof rankingVisibleParaJugador !== 'undefined' && rankingVisibleParaJugador) ? "block" : "none";
+    }
+
+    // 6. Arrancamos el cronómetro de forma segura usando las variables de tu archivo original
+    if (typeof intervaloTiempo !== 'undefined') clearInterval(intervaloTiempo);
+    
+    let inicioReloj = Date.now();
+    intervaloTiempo = setInterval(() => {
+        tiempoFinalTranscurrido = ((Date.now() - inicioReloj) / 1000).toFixed(1);
+        const cronoActualizar = document.getElementById("cronometroEnVivo");
+        if (cronoActualizar) {
+            cronoActualizar.innerText = `${tiempoFinalTranscurrido}s`;
+        }
+    }, 100);
+
+    // 7. Dibujamos las posiciones
+    if (typeof renderizarTablasRanking === 'function') {
+        renderizarTablasRanking();
+    }
+}
+
+   function salirDelJuego() {
+    clearInterval(intervaloTiempo); // Detiene el reloj por seguridad
+    miNombre = "";
+    puntosPartidaActual = 0;
+    tiempoFinalTranscurrido = 0;
+    
+    // RESTABLECER EL TOP 10 COMPLETO CON LOS 10 NOMBRES SIMULADOS
+    listaJugadores = [...top10SimuladoBase]; 
+
+    document.getElementById("nombreJugador").value = "";
+    document.getElementById("juego-jugador").style.display = "none";
+    document.getElementById("registro-jugador").style.display = "block";
+    bluetoothConectado = false;
+    nombreDispositivo = "";
+    actualizarInterfazBluetooth();
+    adminLimpiarAlertas();
+    renderizarTablasRanking(); // Fuerza a las tablas a dibujarse con los 10 nombres otra vez
+}
+    async function solicitarDispositivoBluetooth() {
+        if (bluetoothConectado) {
+            bluetoothConectado = false;
+            nombreDispositivo = "";
+            actualizarInterfazBluetooth();
+            return;
+        }
+
+        try {
+            console.log("Abriendo lista de selección de dispositivos Bluetooth...");
+            const dispositivo = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: "ESP32_" }],
+                acceptAllDevices: false
+            });
+
+            bluetoothConectado = true;
+            nombreDispositivo = dispositivo.name || "ESP32_Robot";
+            actualizarInterfazBluetooth();
+            console.log("Dispositivo seleccionado:", nombreDispositivo);
+
+        } catch (error) {
+            console.log("Ventana cerrada o error: ", error.message);
+        }
+    }
+
+    function actualizarInterfazBluetooth() {
+        const btnBLE = document.getElementById("btnConectarBLE");
+        const estadoTxt = document.getElementById("estadoJuego");
+
+        if (bluetoothConectado) {
+            btnBLE.innerText = "🔴 Desconectar";
+            btnBLE.style.background = "rgba(230, 57, 70, 0.2)";
+            btnBLE.style.borderColor = "#e63946";
+            btnBLE.style.color = "#e63946";
+            if (!enModoAdmin) {
+                estadoTxt.innerText = `🟢 VINCULADO: ${nombreDispositivo.toUpperCase()}`;
+                estadoTxt.style.color = "#00b4d8";
+            }
+        } else {
+            btnBLE.innerText = "🔷 Conectar BLE";
+            btnBLE.style.background = "rgba(0, 82, 204, 0.15)";
+            btnBLE.style.borderColor = "#0052cc";
+            btnBLE.style.color = "#00b4d8";
+            if (!enModoAdmin) {
+                estadoTxt.innerText = "🟠 ESTADO: Esperando conexión Bluetooth";
+                estadoTxt.style.color = "#64748b";
+            }
+        }
+    }
+
+    // --- MANEJO DE EVENTOS DE DIRECCIÓN ---
+   function ejecutarAccion(comando) {
+    console.log("Comando enviado a consola:", comando);
+
+    if (miNombre) {
+        puntosPartidaActual += 2; // Suma tus puntos locales
+        document.getElementById("puntosEnVivo").innerText = puntosPartidaActual;
+
+        // Buscamos tu registro en la lista de jugadores y le actualizamos los puntos en vivo
+        let jugadorActual = listaJugadores.find(p => p.name === miNombre);
+        if (jugadorActual) {
+            jugadorActual.pts = puntosPartidaActual;
+            jugadorActual.tiempo = parseFloat(tiempoFinalTranscurrido);
+        }
+        
+        // Re-ordenamos el Top 10 inmediatamente para ver si subiste de puesto
+        renderizarTablasRanking(); 
+    }
+}
+
+   function adminToggleRanking() {
+    // 1. Cambiamos el estado visual de la tabla flotante
+    rankingVisibleParaJugador = !rankingVisibleParaJugador;
+    document.getElementById("rankingJugadorFlotante").style.display = rankingVisibleParaJugador ? "block" : "none";
+    
+    // 2. Si el admin activó el Ranked (lo puso en True/Visible), evaluamos los puntos actuales en vivo
+    if (rankingVisibleParaJugador) {
+        evaluarFinDePartidaAutomatico();
+    }
+}
+
+    function adminCongelarJugador(debeCongelar) {
+        const mandos = document.getElementById("contenedor-mandos");
+        const indicadorEstado = document.getElementById("estadoJuego");
+
+        if (debeCongelar) {
+            mandos.style.pointerEvents = "none";
+            mandos.style.filter = "grayscale(100%) opacity(0.2)";
+            indicadorEstado.innerText = "🛑 MANDOS CONGELADOS POR EL ADMINISTRADOR";
+            indicadorEstado.style.color = "#e63946";
+            ejecutarAccion("BLOQUEAR_CONTROLES");
+        } else {
+            mandos.style.pointerEvents = "auto";
+            mandos.style.filter = "none";
+            indicadorEstado.innerText = bluetoothConectado ? `🟢 VINCULADO: ${nombreDispositivo.toUpperCase()}` : "🟠 ESTADO: Esperando conexión Bluetooth";
+            indicadorEstado.style.color = bluetoothConectado ? "#00b4d8" : "#64748b";
+            ejecutarAccion("DESBLOQUEAR_CONTROLES");
+        }
+    }
+
+   // Esta función calcula el estado actual contra el Top 10 pero DEJA los controles activos
+function evaluarFinDePartidaAutomatico() {
+    if (!miNombre) return;
+
+    clearInterval(intervaloTiempo); // Detiene el cronómetro para congelar el tiempo del récord
+    
+    let tFinalNum = parseFloat(tiempoFinalTranscurrido);
+    let corteTop10 = top10SimuladoBase[9]; // El puesto #10 a superar
+    let mensajeEvaluacion = "";
+
+    // Condición 1: Supera los puntos directos del puesto 10
+    if (puntosPartidaActual > corteTop10.pts) {
+        mensajeEvaluacion = `🎉 <b>¡FANTÁSTICO!</b> Tus ${puntosPartidaActual} pts superan los ${corteTop10.pts} pts del puesto #10. ¡Has clasificado en el Top 10!`;
+    } 
+    // Condición 2: Empata en puntos, evalúa el tiempo veloz
+    else if (puntosPartidaActual === corteTop10.pts) {
+        if (tFinalNum < corteTop10.tiempo) {
+            mensajeEvaluacion = `🎉 <b>¡ENTRASTE POR TIEMPO!</b> Empataste en ${puntosPartidaActual} pts, pero fuiste más rápido que ${corteTop10.name} (${tFinalNum}s vs ${corteTop10.tiempo}s).`;
+        } else {
+            let diffTiempo = (tFinalNum - corteTop10.tiempo).toFixed(1);
+            mensajeEvaluacion = `❌ <b>POR MUY POCO...</b> Empataste en ${puntosPartidaActual} pts, pero debiste ser <b>${diffTiempo}s más rápido</b> para quitarle el puesto a ${corteTop10.name}.`;
+        }
+    } 
+    // Condición 3: No llega al puntaje mínimo
+    else {
+        let diffPuntos = corteTop10.pts - puntosPartidaActual;
+        mensajeEvaluacion = `❌ <b>EVALUACIÓN DE CORTE.</b> Te faltan <b>${diffPuntos} puntos</b> para destronar a ${corteTop10.name} del puesto #10.`;
+    }
+
+    // Insertamos al jugador en la lista para que se vea en las tablas
+    listaJugadores.push({ name: miNombre, pts: puntosPartidaActual, tiempo: tFinalNum });
+    renderizarTablasRanking();
+
+    // Mostramos la alerta en la pantalla SIN afectar los mandos
+    const areaAlerta = document.getElementById("pantallaAlertaAdmin");
+    areaAlerta.style.display = "block";
+    areaAlerta.innerHTML = `
+        <div class="gameover-box" style="border-color: #0052cc; box-shadow: 0 0 25px rgba(0, 82, 204, 0.4); background: #040a14;">
+            <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #00b4d8; letter-spacing: 1px;">📊 ESTADO DEL DESAFÍO</h2>
+            <p style="color: #ffffff; font-size: 15px; margin: 15px 0; line-height:1.4;">${mensajeEvaluacion}</p>
+            <p style="color: #475569; font-size:12px; margin:0;">Tu marca actual: ${puntosPartidaActual} pts | Tiempo: ${tFinalNum}s</p>
+        </div>
+    `;
+    document.getElementById("estadoJuego").innerText = "📊 RANKING MOSTRADO EN VIVO";
+    
+    // Aquí NO se llama a adminCongelarJugador(true), por lo que los botones siguen activos.
+}
+
+    function adminLimpiarAlertas() {
+        document.getElementById("pantallaAlertaAdmin").style.display = "none";
+        document.getElementById("pantallaAlertaAdmin").innerHTML = "";
+        adminCongelarJugador(false);
+    }
+
+    // --- RENDERIZADO ASÍNCRONO DE TABLAS ---
+    // --- RENDERIZADO ASÍNCRONO DE TABLAS (CORREGIDO A TOP 10 ESTRICTO) ---
+function renderizarTablasRanking() {
+    // Criterio de ordenación: Mayor puntaje primero; si empatan, menor tiempo primero
+    listaJugadores.sort((a, b) => {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        return (a.tiempo || 0) - (b.tiempo || 0);
+    });
+
+    // CORRECCIÓN: Cortamos la lista para que SIEMPRE muestre máximo 10 filas
+    let top10Mostrar = listaJugadores.slice(0, 10);
+
+    // Actualizar ranking flotante del jugador
+    const cuerpoTablaFlotante = document.querySelector("#rankingJugadorFlotante tbody");
+    if (cuerpoTablaFlotante) {
+        let htmlFlotante = "";
+        top10Mostrar.forEach(p => {
+            let esFilaPropia = (p.name === miNombre && p.pts === puntosPartidaActual) ? 'style="background:rgba(0, 82, 204, 0.25); font-weight:bold;"' : '';
+            let nombreMostrar = (p.name === miNombre && p.pts === puntosPartidaActual) ? `${p.name} (Tú)` : p.name;
+            let tiempoTexto = p.tiempo ? `${p.tiempo}s` : "--";
+            
+            htmlFlotante += `<tr ${esFilaPropia}><td>${nombreMostrar}</td><td style="color:#00b4d8; font-weight:bold;">${p.pts} pts</td><td>${tiempoTexto}</td></tr>`;
+        });
+        cuerpoTablaFlotante.innerHTML = htmlFlotante;
+    }
+
+    // Actualizar panel de control del administrador
+    const contenedorAdmin = document.getElementById("tablaAdminContenedor");
+    if (contenedorAdmin) {
+        let htmlAdmin = `<table class="tabla-ranking"><thead><tr><th>POS</th><th>PILOTO</th><th>PUNTOS</th><th>TIEMPO</th></tr></thead><tbody>`;
+        
+        top10Mostrar.forEach((p, index) => {
+            let medalla = `#${index + 1}`;
+            if (index === 0) medalla = "👑 #1";
+            if (index === 1) medalla = "🥈 #2";
+            if (index === 2) medalla = "🥉 #3";
+
+            let esFilaPropia = (p.name === miNombre && p.pts === puntosPartidaActual) ? 'style="background:rgba(230, 57, 70, 0.15);"' : '';
+            let colorPuntos = p.pts > 0 ? "#ffcc00" : "#8c8c8c";
+            let tiempoTexto = p.tiempo ? `${p.tiempo}s` : "--";
+
+            htmlAdmin += `<tr ${esFilaPropia}><td><b style="color:#ffcc00;">${medalla}</b></td><td>${p.name}</td><td style="color:${colorPuntos}; font-weight:bold;">${p.pts} pts</td><td style="color:#00b4d8;">${tiempoTexto}</td></tr>`;
+        });
+        
+        htmlAdmin += `</tbody></table>`;
+        contenedorAdmin.innerHTML = htmlAdmin;
+    }
+}
+    // Carga inicial de datos organizados
+    renderizarTablasRanking();
+</script>
+</body>
+</html>
